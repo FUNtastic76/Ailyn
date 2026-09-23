@@ -45,40 +45,26 @@ class VisualCortex:
     def process_vision(self, image):
         height, width = image.shape[0], image.shape[1]
 
-        assert width == height
+        gray_image = (
+                0.299 * image[:, :, 0] +
+                0.587 * image[:, :, 1] +
+                0.114 * image[:, :, 2]
+        )
 
-        fov_size = width
-        center = fov_size / 2
-        fov_radius = fov_size / 2
+        scale = min(width, height) / 2.0
 
         for i, r in enumerate(self.receptors):
-            # normalization
-            pixel_col = (r["x"] + 1.0) / 2.0 * fov_size
-            pixel_row = (r["y"] + 1.0) / 2.0 * fov_size
-
-            # clip — без этого крайние рецепторы (x=1.0 или y=-1.0) вылетают за границу массива
-            pixel_col = int(np.clip(pixel_col, 0, fov_size  - 1))
-            pixel_row = int(np.clip(pixel_row, 0, fov_size  - 1))
-
-            # радиус рецептора -> радиус патча в пикселях (используем меньшую сторону,
-            # чтобы патч не растягивался в эллипс на прямоугольном 600x300 изображении)
-            scale = fov_size  / 2.0
+            pixel_col = int(np.clip((r["x"] + 1.0) / 2.0 * width, 0, width - 1))
+            pixel_row = int(np.clip((r["y"] + 1.0) / 2.0 * height, 0, height - 1))
             pixel_radius = max(1, int(r["radius"] * scale))
 
-            # вырезаем патч вокруг центра рецептора
             row_lo = max(0, pixel_row - pixel_radius)
             row_hi = min(height, pixel_row + pixel_radius + 1)
             col_lo = max(0, pixel_col - pixel_radius)
             col_hi = min(width, pixel_col + pixel_radius + 1)
-            patch = image[row_lo:row_hi, col_lo:col_hi]
+            patch = gray_image[row_lo:row_hi, col_lo:col_hi]
 
-            # RGB -> яркость (формула чувствительности человеческого глаза), затем среднее по патчу
-            luminance_patch = (
-                    0.299 * patch[:, :, 0] +
-                    0.587 * patch[:, :, 1] +
-                    0.114 * patch[:, :, 2]
-            )
-            self.retina[i] = luminance_patch.mean()
+            self.retina[i] = patch.mean() / 255.0
 
         return self.retina
 

@@ -2,8 +2,10 @@ import tkinter as tk
 from PIL import Image, ImageTk, ImageDraw
 import os
 import json
+import time
 
-Neutral = "D:/AI/photos/neutral.png"
+Neutral = "D:/AI/PythonProject/Ailyn/neutral.png"
+DrinkingMilk = "D:/AI/PythonProject/Ailyn/drinking_milk.png"
 MAGIC_CHROMA_KEY = "#ff00ff"
 MAGIC_RGBA = (255, 0, 255, 255)
 
@@ -20,6 +22,10 @@ class AilynFaceWidget:
         self.root = root
         self.emotion_face = ""
         self.old_state = "abvc"
+
+        self.drinking_until = 0
+        self.previous_emotion_face = ""
+
         #Make the window completely frameless and without a title bar
         self.root.overrideredirect(True)
 
@@ -40,7 +46,7 @@ class AilynFaceWidget:
 
     def filter_background_smart(self, img):
 
-        #Flood Fill filter
+        # Flood Fill filter
 
         img = img.convert("RGBA")
 
@@ -51,7 +57,7 @@ class AilynFaceWidget:
             (img.width - 1, img.height - 1)
         ]
 
-        # thresh — sensitivity to dirty colors
+        # thresh is sensitivity to dirty colors
         for corner in corners:
             current_color = img.getpixel(corner)
             if current_color != MAGIC_RGBA:
@@ -69,7 +75,7 @@ class AilynFaceWidget:
 
                 img.thumbnail((window_width, window_height), Image.Resampling.LANCZOS)
 
-                # Создаем подложку нужного размера, если картинка после thumbnail меньше окна
+                # if thumbnail is smaller than window, create a new image with the same size as the window and paste the thumbnail in the center
                 background = Image.new('RGBA', (window_width, window_height), (255, 255, 255, 255))
 
                 offset = ((window_width - img.width) // 2, (window_height - img.height) // 2)
@@ -90,43 +96,68 @@ class AilynFaceWidget:
         x = screen_width - window_width - OFFSET_X
         y = screen_height - window_height - OFFSET_Y
 
-        # Установить геометрию (Ширина x Высота + X_поз + Y_поз)
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
     def update_emotion(self):
         try:
-            with open("D:/AI/PythonProject/emotion_state.json", "r", encoding="utf-8") as file:
+            milk_signal = "D:/AI/PythonProject/Ailyn/milk_signal.txt"
+
+            if os.path.exists(milk_signal):
+                if time.time() >= self.drinking_until:
+                    self.previous_emotion_face = self.emotion_face
+
+                    self.emotion_face = DrinkingMilk
+                    self.load_face_image(self.emotion_face)
+
+                    self.drinking_until = time.time() + 1.5
+
+                try:
+                    os.remove(milk_signal)
+                except PermissionError:
+                    pass
+
+            if time.time() < self.drinking_until:
+                self.root.after(200, self.update_emotion)
+                return
+
+            if self.previous_emotion_face != "":
+                self.emotion_face = self.previous_emotion_face
+                self.previous_emotion_face = ""
+                self.load_face_image(self.emotion_face)
+
+
+            with open("D:/AI/PythonProject/Ailyn/emotion_state.json", "r", encoding="utf-8") as file:
                 core_affect = json.load(file)
 
             self.state = core_affect["emotion"]
 
             if self.state != self.old_state:
                 if self.state == "controlled positive":
-                    self.emotion_face = "D:/AI/photos/happiness.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/happiness.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 if self.state == "controlled negative":
-                    self.emotion_face = "D:/AI/photos/angry.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/angry.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 if self.state == "low positive":
-                    self.emotion_face = "D:/AI/photos/neutral.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/neutral.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 if self.state == "low negative":
-                    self.emotion_face = "D:/AI/photos/sadness.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/sadness.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 if self.state == "high positive":
-                    self.emotion_face = "D:/AI/photos/suprise.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/suprise.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 if self.state == "high negative":
-                    self.emotion_face = "D:/AI/photos/fear.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/fear.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 if self.state == "neutral":
-                    self.emotion_face = "D:/AI/photos/neutral0.png"
+                    self.emotion_face = "D:/AI/PythonProject/Ailyn/neutral0.png"
                     print(f"Ailyn changed her face to {self.state}")
 
                 self.old_state = self.state
@@ -134,7 +165,7 @@ class AilynFaceWidget:
                 self.load_face_image(self.emotion_face)
 
         except (json.JSONDecodeError, PermissionError):
-            # Защита от коллизий, если файл читается в момент записи основной программой
+            # collision defense
             pass
 
         except Exception as e:
@@ -148,3 +179,5 @@ if __name__ == "__main__":
 
     print("Ailyn woke up")
     root.mainloop()
+
+#upgrade to 3d (watch AI companion videos)
